@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cold War Archives: Declassified</title>
+    <style>
+        :root {
+            --bg-color: #111;
+            --terminal-green: #0f0;
+            --terminal-dim: #003300;
+            --accent: #ff3333;
+            --glass: rgba(20, 30, 20, 0.9);
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-color);
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-image: linear-gradient(rgba(0, 255, 0, 0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 255, 0, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .archive-container {
+            width: 800px;
+            max-width: 95%;
+            margin-top: 20px;
+            border: 2px solid #333;
+            background: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Header / HUD */
+        .hud {
+            background: #222;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #444;
+            color: var(--terminal-green);
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Game Area */
+        .game-area {
+            padding: 40px;
+            background: var(--glass);
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .mission-brief {
+            color: var(--terminal-green);
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+        }
+
+        /* Drop Zone */
+        .answer-zone {
+            min-height: 150px;
+            border: 4px dashed #444;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 50, 0, 0.2);
+            transition: all 0.3s;
+        }
+
+        .answer-zone.correct {
+            border-color: #fff;
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        .answer-zone.wrong {
+            border-color: var(--accent);
+            background: rgba(255, 0, 0, 0.1);
+        }
+
+        /* Word Chips */
+        .word-pool {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            min-height: 50px;
+        }
+
+        /* Word Chip Style */
+        .word-chip {
+            background: linear-gradient(to bottom, #2a2a2a, #1a1a1a);
+            color: #fff;
+            padding: 20px 30px;
+            border: 2px solid #555;
+            border-radius: 6px;
+            cursor: grab;
+            user-select: none;
+            font-weight: bold;
+            font-size: 1.5rem; /* Large text for TV */
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            margin: 5px;
+            touch-action: none; /* Critical for touch dragging */
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .word-chip:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+            z-index: 1000;
+            box-shadow: 0 10px 20px rgba(0,255,0,0.3);
+            border-color: var(--terminal-green);
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 20px 40px;
+            font-family: inherit;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            color: #000;
+            font-size: 1.2rem;
+        }
+
+        .btn-check { background: var(--terminal-green); }
+        .btn-check:hover { background: #00cc00; }
+        
+        .btn-reset { background: #555; color: #fff; }
+        .btn-reset:hover { background: #666; }
+
+        .btn-next { 
+            background: #fff; 
+        }
+
+        .btn-pulse {
+            animation: pulse 1.5s infinite;
+            box-shadow: 0 0 10px #fff;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            animation: none;
+        }
+
+        /* Scanlines Effect */
+        .scanlines {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0.3;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+        }
+
+        /* End Screen */
+        #end-screen {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        /* Start Screen */
+        .start-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .difficulty-select {
+            display: flex;
+            gap: 20px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .game-area {
+                padding: 15px;
+                min-height: 400px;
+                gap: 15px;
+            }
+            .mission-brief {
+                font-size: 1.1rem;
+            }
+            .word-chip {
+                padding: 10px 15px;
+                font-size: 1rem;
+                margin: 3px;
+            }
+            .answer-zone {
+                min-height: 100px;
+                padding: 5px;
+            }
+            .btn {
+                padding: 12px 20px;
+                font-size: 0.9rem;
+            }
+            .controls {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .difficulty-select {
+                flex-direction: column;
+                width: 80%;
+            }
+            .difficulty-select .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="archive-container">
+    <div class="scanlines"></div>
+    
+    <div id="start-screen" class="start-screen">
+        <h1 style="color: var(--terminal-green); text-shadow: 0 0 10px var(--terminal-green);">COLD WAR ARCHIVES</h1>
+        <p style="color: #aaa; margin-bottom: 30px;">SELECT SECURITY CLEARANCE</p>
+        <div class="difficulty-select">
+            <button class="btn btn-check" onclick="startGame('easy')">EASY (Cadet)</button>
+            <button class="btn btn-reset" onclick="startGame('hard')">HARD (Agent)</button>
+        </div>
+    </div>
+
+    <div class="hud">
+        <div id="level-display">FILE: 01/20</div>
+        <div id="score-display">INTEL: 0%</div>
+    </div>
+
+    <!-- Game Interaction -->
+    <div class="game-area" id="game-area">
+        <div class="mission-brief" id="mission-brief">
+            DECRYPT THE MESSAGE TO UNLOCK THE ARCHIVE
+        </div>
+        <div id="status-display" style="text-align: center; margin-bottom: 10px; min-height: 20px; color: var(--accent); font-weight: bold;"></div>
+
+        <div class="answer-zone" id="answer-zone">
+            <!-- Dropped words go here -->
+        </div>
+
+        <div class="controls">
+            <button class="btn" id="prev-btn" onclick="prevLevel()">&lt;&lt; PREV</button>
+            <button class="btn btn-reset" onclick="jumbleWords()">JUMBLE</button>
+            <button class="btn btn-check" onclick="checkAnswer()">Submit Code</button>
+            <button class="btn btn-next" id="next-btn" onclick="nextLevel()">NEXT &gt;&gt;</button>
+        </div>
+    </div>
+
+    <!-- End Screen -->
+    <div id="end-screen">
+        <h1 style="color: var(--terminal-green)">ARCHIVE DECRYPTED</h1>
+        <p>INTELLIGENCE REPORT COMPILED.</p>
+        <h2 id="final-score"></h2>
+        <button class="btn btn-check" onclick="location.reload()">RESTART MISSION</button>
+    </div>
+</div>
+
+<script>
+    // 20 Levels of Historical Data
+    // Note: YouTube IDs are used where available. 'placeholder' is used for fallback.
+    const allLevels = [
+        // Easy Set (Quick Play)
+        {
+            id: 1,
+            type: 'image',
+            tags: 'question,mark',
+            desc: "DEFINITION: PARADOX",
+            sentence: "A PARADOX IS A TRUE CONTRADICTION",
+            hint: "A confusing but true idea."
+        },
+        {
+            id: 2,
+            type: 'image',
+            tags: 'flag,usa,ussr',
+            desc: "THE COLD WAR CONTEXT",
+            sentence: "DEMOCRACY FOUGHT COMMUNISM IN THE COLD WAR",
+            hint: "U.S.A. vs U.S.S.R. ideology."
+        },
+        {
+            id: 3,
+            type: 'image',
+            tags: 'asia,map,vintage',
+            desc: "ECONOMIC STANDING",
+            sentence: "THE PHILIPPINES WAS THE SECOND RICHEST IN ASIA",
+            hint: "Ranked after Japan."
+        },
+        {
+            id: 4,
+            type: 'image',
+            tags: 'factory,worker',
+            desc: "ECONOMIC POLICY",
+            sentence: "LOCAL FACTORIES MADE GOODS FOR THE PEOPLE",
+            hint: "Made at home."
+        },
+        {
+            id: 5,
+            type: 'image',
+            tags: 'bridge,construction',
+            desc: "INFRASTRUCTURE BOOM",
+            sentence: "THE GOVERNMENT BUILT MANY ROADS AND BRIDGES",
+            hint: "Construction era."
+        },
+        {
+            id: 6,
+            type: 'image',
+            tags: 'bank,money,debt',
+            desc: "FOREIGN DEBT",
+            sentence: "THE COUNTRY BORROWED MONEY FROM OTHER NATIONS",
+            hint: "Getting loans."
+        },
+        {
+            id: 7,
+            type: 'image',
+            tags: 'hospital,sick',
+            desc: "ECONOMIC DECLINE",
+            sentence: "WE BECAME THE SICK MAN OF ASIA",
+            hint: "Sick man of Asia."
+        },
+        {
+            id: 8,
+            type: 'video',
+            src: 'zg9eRAbYhEY',
+            start: 60,
+            desc: "KOREAN WAR HEROES",
+            sentence: "FILIPINO SOLDIERS FOUGHT BRAVE BATTLES IN KOREA",
+            hint: "PEFTOK mission."
+        },
+        {
+            id: 9,
+            type: 'image',
+            tags: 'doctor,vietnam',
+            desc: "VIETNAM WAR AID",
+            sentence: "DOCTORS HELPED REFUGEES IN THE VIETNAM WAR",
+            hint: "Civic action."
+        },
+        {
+            id: 10,
+            type: 'image',
+            tags: 'handshake,aid',
+            desc: "U.S. RELATIONS",
+            sentence: "U.S. GAVE AID TO REBUILD THE NATION",
+            hint: "Post-war assistance."
+        },
+        {
+            id: 21,
+            type: 'image',
+            tags: 'shield,defense',
+            desc: "SEATO PURPOSE",
+            sentence: "SEATO WAS A SHIELD AGAINST COMMUNISM",
+            hint: "Defense organization."
+        },
+        {
+            id: 22,
+            type: 'image',
+            tags: 'president,people',
+            desc: "POPULAR LEADER",
+            sentence: "MAGSAYSAY WAS LOVED BY THE PEOPLE",
+            hint: "Man of the Masses."
+        },
+        {
+            id: 23,
+            type: 'image',
+            tags: 'money,coin',
+            desc: "ECONOMIC STRENGTH",
+            sentence: "THE PESO WAS STRONG BACK THEN",
+            hint: "Currency value."
+        },
+        {
+            id: 24,
+            type: 'image',
+            tags: 'sugar,export',
+            desc: "MAIN EXPORTS",
+            sentence: "WE SOLD SUGAR TO THE WORLD",
+            hint: "Sweet export."
+        },
+        {
+            id: 25,
+            type: 'image',
+            tags: 'jeepney,traffic',
+            desc: "TRANSPORTATION",
+            sentence: "JEEPNEYS RULED THE CITY STREETS",
+            hint: "King of the road."
+        },
+        {
+            id: 26,
+            type: 'image',
+            tags: 'cinema,movie',
+            desc: "CULTURE",
+            sentence: "PEOPLE WATCHED MANY AMERICAN MOVIES",
+            hint: "Hollywood influence."
+        },
+        {
+            id: 27,
+            type: 'image',
+            tags: 'ship,navy',
+            desc: "NAVAL BASE",
+            sentence: "SUBIC WAS A HOME FOR SHIPS",
+            hint: "U.S. Navy base."
+        },
+        {
+            id: 28,
+            type: 'image',
+            tags: 'plane,airforce',
+            desc: "AIR BASE",
+            sentence: "CLARK WAS A BASE FOR PLANES",
+            hint: "U.S. Air Force base."
+        },
+        {
+            id: 29,
+            type: 'image',
+            tags: 'soldier,jungle',
+            desc: "INTERNAL CONFLICT",
+            sentence: "SOLDIERS FOUGHT THE HUK REBELS",
+            hint: "Anti-government group."
+        },
+        {
+            id: 30,
+            type: 'image',
+            tags: 'rice,farm',
+            desc: "AGRICULTURE",
+            sentence: "FARMERS PLANTED MIRACLE RICE SEEDS",
+            hint: "Green Revolution."
+        },
+        // Hard Set (Advanced Level)
+        {
+            id: 11,
+            type: 'image',
+            tags: 'globe,philippines',
+            desc: "THE PHILIPPINE PARADOX",
+            sentence: "THE COUNTRY WAS STRONG ABROAD BUT WEAK AT HOME",
+            hint: "A paradox of strength."
+        },
+        {
+            id: 12,
+            type: 'image',
+            tags: 'construction,blueprint',
+            desc: "INFRASTRUCTURE FUNDING",
+            sentence: "INFRASTRUCTURE PROJECTS WERE FUNDED BY MASSIVE FOREIGN DEBT",
+            hint: "Loans for building."
+        },
+        {
+            id: 13,
+            type: 'image',
+            tags: 'monopoly,business',
+            desc: "CRONY CAPITALISM",
+            sentence: "CRONY CAPITALISM GAVE INDUSTRIES TO FRIENDS OF THE PRESIDENT",
+            hint: "Favors for allies."
+        },
+        {
+            id: 14,
+            type: 'image',
+            tags: 'tiger,asia,chart',
+            desc: "REGIONAL COMPARISON",
+            sentence: "NEIGHBORING COUNTRIES GREW FAST WHILE THE PHILIPPINES FELL BEHIND",
+            hint: "Lagging behind."
+        },
+        {
+            id: 15,
+            type: 'video',
+            src: 'bW4hJ2s_B8Q',
+            start: 0,
+            desc: "CRISIS POINT",
+            sentence: "POLITICAL INSTABILITY AND DEBT CAUSED A MAJOR ECONOMIC CRASH",
+            hint: "Economic failure."
+        },
+        {
+            id: 16,
+            type: 'image',
+            tags: 'military,base,ship',
+            desc: "GEOPOLITICS",
+            sentence: "U.S. MILITARY BASES WERE STRATEGIC FOR DEFENSE IN ASIA",
+            hint: "Subic and Clark."
+        },
+        {
+            id: 17,
+            type: 'image',
+            tags: 'soldier,korea,winter',
+            desc: "PEFTOK DETAILS",
+            sentence: "THOUSANDS OF FILIPINO SOLDIERS WERE SENT TO DEFEND KOREA",
+            hint: "PEFTOK troops."
+        },
+        {
+            id: 18,
+            type: 'image',
+            tags: 'nurse,tent',
+            desc: "PHILCAG MISSION",
+            sentence: "THE PHILIPPINES SENT HUMANITARIAN AID INSTEAD OF COMBAT TROOPS",
+            hint: "Civic action."
+        },
+        {
+            id: 19,
+            type: 'image',
+            tags: 'treaty,signing',
+            desc: "SEATO ALLIANCE",
+            sentence: "THE MANILA PACT CREATED THE SOUTHEAST ASIA TREATY ORGANIZATION",
+            hint: "Regional alliance."
+        },
+        {
+            id: 20,
+            type: 'image',
+            tags: 'economy,pillar',
+            desc: "LESSON LEARNED",
+            sentence: "A STRONG FOREIGN POLICY REQUIRES A STABLE DOMESTIC ECONOMY",
+            hint: "Money powers diplomacy."
+        },
+        {
+            id: 31,
+            type: 'image',
+            tags: 'trade,agreement',
+            desc: "TRADE ACT",
+            sentence: "THE BELL TRADE ACT LINKED OUR ECONOMY TO AMERICA",
+            hint: "Post-war trade law."
+        },
+        {
+            id: 32,
+            type: 'image',
+            tags: 'resource,mining',
+            desc: "PARITY RIGHTS",
+            sentence: "PARITY RIGHTS GAVE FOREIGNERS ACCESS TO NATURAL RESOURCES",
+            hint: "Equal rights for Americans."
+        },
+        {
+            id: 33,
+            type: 'image',
+            tags: 'factory,protection',
+            desc: "IMPORT CONTROLS",
+            sentence: "IMPORT CONTROLS WERE USED TO HELP LOCAL FACTORIES",
+            hint: "Protecting local goods."
+        },
+        {
+            id: 34,
+            type: 'image',
+            tags: 'document,signing',
+            desc: "NEW AGREEMENT",
+            sentence: "LAUREL LANGLEY AGREEMENT CHANGED TRADE RULES WITH AMERICA",
+            hint: "Updated trade deal."
+        },
+        {
+            id: 35,
+            type: 'image',
+            tags: 'martial,law',
+            desc: "MARTIAL LAW",
+            sentence: "MARTIAL LAW WAS DECLARED TO STOP THE REBELLION",
+            hint: "Proclamation 1081."
+        },
+        {
+            id: 36,
+            type: 'image',
+            tags: 'explosion,rally',
+            desc: "PLAZA MIRANDA",
+            sentence: "PLAZA MIRANDA BOMBING INJURED MANY POLITICAL CANDIDATES",
+            hint: "Attack on Liberals."
+        },
+        {
+            id: 37,
+            type: 'image',
+            tags: 'meeting,suit',
+            desc: "TECHNOCRATS",
+            sentence: "TECHNOCRATS WERE HIRED TO FIX THE NATIONAL ECONOMY",
+            hint: "Experts in government."
+        },
+        {
+            id: 38,
+            type: 'image',
+            tags: 'protest,student',
+            desc: "FIRST QUARTER STORM",
+            sentence: "STUDENTS PROTESTED DURING THE FIRST QUARTER STORM",
+            hint: "1970 unrest."
+        },
+        {
+            id: 39,
+            type: 'image',
+            tags: 'airport,tarmac',
+            desc: "ASSASSINATION",
+            sentence: "AQUINO ASSASSINATION ANGERED THE PEOPLE AND STARTED PROTESTS",
+            hint: "Death of Ninoy."
+        },
+        {
+            id: 40,
+            type: 'image',
+            tags: 'crowd,yellow',
+            desc: "EDSA REVOLUTION",
+            sentence: "PEOPLE POWER REVOLUTION ENDED THE LONG DICTATORSHIP PEACEFULLY",
+            hint: "1986 event."
+        }
+    ];
+
+    let levels = [];
+    let currentLevel = 0;
+    let currentWords = [];
+    let userWords = [];
+    let score = 0;
+    let attempts = 0;
+
+    const answerZone = document.getElementById('answer-zone');
+    const levelDisplay = document.getElementById('level-display');
+    const nextBtn = document.getElementById('next-btn');
+    const prevBtn = document.getElementById('prev-btn');
+    const missionBrief = document.getElementById('mission-brief');
+
+    function startGame(difficulty) {
+        if (difficulty === 'easy') {
+            levels = allLevels.slice(0, 20);
+        } else {
+            levels = allLevels.slice(20, 40);
+        }
+        document.getElementById('start-screen').style.display = 'none';
+        loadLevel();
+    }
+
+    function loadLevel() {
+        attempts = 0;
+        const level = levels[currentLevel];
+        levelDisplay.textContent = `FILE: ${currentLevel + 1}/${levels.length}`;
+        missionBrief.textContent = `DECRYPT: ${level.desc}`;
+        missionBrief.style.color = '#aaa';
+        document.getElementById('status-display').textContent = '';
+        
+        nextBtn.classList.remove('btn-pulse');
+        prevBtn.disabled = currentLevel === 0;
+        // Next button is always enabled to allow skipping or finishing
+
+        document.querySelector('.controls .btn-check').disabled = false;
+        document.querySelector('.controls .btn-reset').disabled = false;
+        answerZone.className = 'answer-zone';
+        answerZone.innerHTML = '';
+        userWords = [];
+
+        // Scramble Words
+        const words = level.sentence.split(' ');
+        const scrambled = [...words].sort(() => Math.random() - 0.5);
+
+        scrambled.forEach((word) => {
+            const chip = document.createElement('div');
+            chip.className = 'word-chip';
+            chip.textContent = word;
+            chip.dataset.word = word;
+            
+            // Add Drag Events
+            addDragEvents(chip);
+            
+            answerZone.appendChild(chip);
+        });
+    }
+
+    // Drag and Drop Logic for Touch/Mouse
+    function addDragEvents(el) {
+        let isDragging = false;
+        let startX, startY, initialLeft, initialTop;
+        let parentRect;
+
+        const startDrag = (e) => {
+            if (el.style.pointerEvents === 'none') return; // Locked
+            isDragging = true;
+            
+            // Get coordinates (Touch or Mouse)
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            // Prepare element for moving
+            el.style.position = 'fixed';
+            el.style.zIndex = '1000';
+            el.style.width = el.offsetWidth + 'px'; // Lock width
+            
+            // Center on finger
+            el.style.left = (clientX - el.offsetWidth / 2) + 'px';
+            el.style.top = (clientY - el.offsetHeight / 2) + 'px';
+            
+            e.preventDefault(); // Prevent scrolling
+        };
+
+        const moveDrag = (e) => {
+            if (!isDragging) return;
+            
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            el.style.left = (clientX - el.offsetWidth / 2) + 'px';
+            el.style.top = (clientY - el.offsetHeight / 2) + 'px';
+        };
+
+        const endDrag = (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+
+            // Hide element briefly to check what's underneath
+            el.style.display = 'none';
+            
+            // Get drop target
+            const changedTouch = e.changedTouches ? e.changedTouches[0] : e;
+            const clientX = changedTouch.clientX;
+            const clientY = changedTouch.clientY;
+            const elemBelow = document.elementFromPoint(clientX, clientY);
+            
+            el.style.display = 'block';
+            el.style.position = 'static';
+            el.style.width = 'auto';
+            el.style.zIndex = '10';
+
+            // Check if dropped in Answer Zone
+            const dropTarget = elemBelow ? elemBelow.closest('.answer-zone') : null;
+
+            if (dropTarget) {
+                // Find closest sibling to insert relative to
+                const siblings = Array.from(dropTarget.querySelectorAll('.word-chip'));
+                const otherSiblings = siblings.filter(s => s !== el);
+
+                let closest = null;
+                let minDist = Infinity;
+
+                otherSiblings.forEach(sibling => {
+                    const rect = sibling.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const dist = Math.hypot(clientX - centerX, clientY - centerY);
+
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closest = sibling;
+                    }
+                });
+
+                if (closest) {
+                    const rect = closest.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    if (clientX > centerX) {
+                        dropTarget.insertBefore(el, closest.nextSibling);
+                    } else {
+                        dropTarget.insertBefore(el, closest);
+                    }
+                } else {
+                    dropTarget.appendChild(el);
+                }
+            } else {
+                // Return to answer zone if dropped nowhere
+                answerZone.appendChild(el);
+            }
+        };
+
+        // Mouse Events
+        el.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', moveDrag);
+        document.addEventListener('mouseup', endDrag);
+
+        // Touch Events
+        el.addEventListener('touchstart', startDrag, {passive: false});
+        document.addEventListener('touchmove', moveDrag, {passive: false});
+        document.addEventListener('touchend', endDrag);
+    }
+
+    function jumbleWords() {
+        const pieces = Array.from(answerZone.children);
+        pieces.sort(() => Math.random() - 0.5);
+        pieces.forEach(p => answerZone.appendChild(p));
+    }
+
+    function checkAnswer() {
+        const level = levels[currentLevel];
+        
+        // Get words from answer zone in order
+        const pieces = Array.from(answerZone.children);
+        const attempt = pieces.map(p => p.textContent).join(' ');
+        
+        if (attempt === level.sentence) {
+            answerZone.classList.add('correct');
+            nextBtn.classList.add('btn-pulse');
+            score++;
+            document.getElementById('score-display').textContent = `INTEL: ${Math.round((score / levels.length) * 100)}%`;
+            lockInterface();
+        } else {
+            attempts++;
+            if (attempts >= 3) {
+                // Reveal Answer
+                answerZone.innerHTML = '';
+                level.sentence.split(' ').forEach(word => {
+                    const chip = document.createElement('div');
+                    chip.className = 'word-chip';
+                    chip.textContent = word;
+                    chip.style.borderColor = 'var(--accent)';
+                    answerZone.appendChild(chip);
+                });
+                document.getElementById('status-display').textContent = "MAX ATTEMPTS REACHED. ANSWER REVEALED.";
+                nextBtn.classList.add('btn-pulse');
+                lockInterface();
+            } else {
+                answerZone.classList.add('wrong');
+                setTimeout(() => answerZone.classList.remove('wrong'), 500);
+                document.getElementById('status-display').textContent = `INCORRECT. TRIES REMAINING: ${3 - attempts}`;
+            }
+        }
+    }
+
+    function lockInterface() {
+        document.querySelector('.controls .btn-check').disabled = true;
+        document.querySelector('.controls .btn-reset').disabled = true;
+        document.querySelectorAll('.word-chip').forEach(c => c.style.pointerEvents = 'none');
+    }
+
+    function prevLevel() {
+        if (currentLevel > 0) {
+            currentLevel--;
+            loadLevel();
+        }
+    }
+
+    function nextLevel() {
+        currentLevel++;
+        if (currentLevel < levels.length) {
+            loadLevel();
+        } else {
+            showEndScreen();
+        }
+    }
+
+    function showEndScreen() {
+        document.getElementById('game-area').style.display = 'none';
+        document.getElementById('end-screen').style.display = 'block';
+        document.getElementById('final-score').textContent = `FINAL SCORE: ${score}/${levels.length}`;
+    }
+
+</script>
+
+</body>
+</html>
